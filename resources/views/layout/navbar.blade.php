@@ -54,7 +54,7 @@
                 aria-haspopup="true" aria-expanded="false">
                 <i class="fas fa-bell fa-fw"></i>
                 <!-- Counter - Alerts -->
-                <span id="notif-count" class="badge badge-danger badge-counter" style="display:none">0+</span>
+                <span id="notif-count" class="badge badge-danger badge-counter" >0+</span>
             </a>
             <!-- Dropdown - Alerts -->
             <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"

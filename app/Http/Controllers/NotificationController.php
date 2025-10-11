@@ -8,29 +8,55 @@ class NotificationController extends Controller
 {
     public function unreadCount(Request $request)
     {
-        return response()->json(['count' => $request->user()?->unreadNotifications()->count() ?? 0]);
+        $user = $request->user();
+
+        return response()->json([
+            'count' => $user?->unreadNotifications()->count() ?? 0,
+        ]);
     }
     public function list(Request $request)
     {
-        $items = $request->user()->notifications()->latest()->limit(30)->get()->map(function ($n) {
-            return [
-                'id' => $n->id, 
-                'category' => $n->data['category'] ?? 'default', 
-                'message' => $n->data['message'] ?? $n->type, 'read_at' => $n->read_at, 
-                'created_at' => $n->created_at->toDateTimeString()
-            ];
-        });
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['items' => []]);
+        }
+
+        $items = $user->notifications()
+            ->latest()
+            ->limit(30)
+            ->get()
+            ->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'category' => $notification->data['category'] ?? 'default',
+                    'message' => $notification->data['message'] ?? $notification->type,
+                    'read_at' => $notification->read_at?->toDateTimeString(),
+                    'created_at' => $notification->created_at->toDateTimeString(),
+                ];
+            })
+            ->values();
         return response()->json(['items' => $items]);
     }
     public function markAsRead(Request $request, $id)
     {
-        $n = $request->user()->notifications()->findOrFail($id);
-        $n->markAsRead();
-        return response()->json(['ok' => true]);
+        $user = $request->user();
+
+        if (!$user) {
+            abort(404);
+        }
+
+        $notification = $user->notifications()->findOrFail($id);
+        $notification->markAsRead();
     }
     public function markAllAsRead(Request $request)
     {
-        $request->user()->unreadNotifications()->update(['read_at' => now()]);
-        return response()->json(['ok' => true]);
+       $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['ok' => true]);
+        }
+
+        $user->unreadNotifications()->update(['read_at' => now()]);
     }
 }
