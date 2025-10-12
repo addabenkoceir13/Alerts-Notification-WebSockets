@@ -218,10 +218,9 @@
 </nav>
 <!-- End of Topbar -->
 
-@section('script')
+@push('scripts')
     <script>
         (function() {
-                if (!window.Echo) return;
                 const csrf = document.querySelector('meta[name="csrf-token"]').content;
                 const countEl = document.getElementById('notif-count');
                 const list = document.getElementById('notif-list');
@@ -308,26 +307,33 @@
                     });
                 }
 
-                @auth
-                const uid = {{ auth()->id() }};
-                // Subscribe to user private notification stream (Notification::send via database+broadcast)
+            @auth
+            const uid = {{ auth()->id() }};
+            const isAdmin = {{ auth()->user()->isAdmin() ? 'true' : 'false' }};
+            function subscribe() {
+                if (!window.Echo) return;
                 window.Echo.private('App.Models.User.' + uid)
                     .notification(() => {
                         ding();
                         load();
                     });
-
-                // If admin, also listen to admin-wide post.created events
-                @if(auth()->user()->isAdmin())
-                window.Echo.private('admins')
-                    .listen('.post.created', () => {
-                        ding();
-                        load();
-                    });
-                @endif
+                if (isAdmin) {
+                    window.Echo.private('admins')
+                        .listen('.post.created', () => {
+                            ding();
+                            load();
+                        });
+                }
+            }
+            if (window.Echo) {
+                subscribe();
+            } else {
+                window.addEventListener('echo:ready', subscribe, { once: true });
+            }
             @endauth
 
+            // Always render initial state even if Echo isn't ready yet
             load();
         })();
     </script>
-@endsection
+@endpush
