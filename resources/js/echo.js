@@ -1,7 +1,6 @@
 import Echo from 'laravel-echo';
 
-import Pusher from 'pusher-js';
-window.Pusher = Pusher;
+// Reverb uses a Pusher compatible protocol, but laravel-echo with 'reverb' does not require pusher-js
 
 window.Echo = new Echo({
     broadcaster: 'reverb',

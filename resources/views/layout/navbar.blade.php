@@ -310,11 +310,21 @@
 
                 @auth
                 const uid = {{ auth()->id() }};
+                // Subscribe to user private notification stream (Notification::send via database+broadcast)
                 window.Echo.private('App.Models.User.' + uid)
-                    .notification((payload) => {
+                    .notification(() => {
                         ding();
                         load();
                     });
+
+                // If admin, also listen to admin-wide post.created events
+                @if(auth()->user()->isAdmin())
+                window.Echo.private('admins')
+                    .listen('.post.created', () => {
+                        ding();
+                        load();
+                    });
+                @endif
             @endauth
 
             load();

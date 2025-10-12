@@ -7,7 +7,7 @@ use App\Notifications\UserApprovedNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 
-class UserApprovedListener
+class UserApprovedListener implements ShouldQueue
 {
     /**
      * Create the event listener.

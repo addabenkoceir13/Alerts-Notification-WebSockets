@@ -7,7 +7,7 @@ use App\Notifications\PostApprovedNotification;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 
-class PostApprovedListener
+class PostApprovedListener implements ShouldQueue
 {
     /**
      * Create the event listener.

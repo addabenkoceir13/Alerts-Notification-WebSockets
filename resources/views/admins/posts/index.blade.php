@@ -34,7 +34,14 @@
                             <td>{{ $post->title }}</td>
                             <td>{{ $post->body }}</td>
                             <td>{{ $post->status }}</td>
-                            <td></td>
+                            <td>
+                                @if($post->status !== 'approved')
+                                <form action="{{ route('admins.posts.approve', $post) }}" method="POST">
+                                    @csrf
+                                    <button class="btn btn-sm btn-success">Approve</button>
+                                </form>
+                                @endif
+                            </td>
                         </tr>
                         @empty
                             <tr colspan="5">

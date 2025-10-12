@@ -39,4 +39,5 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('users/posts/store', [PostController::class, 'store'])->name('users.posts.store');
 
     Route::get('admins/posts', [AdminPostController::class, 'index'])->name('admins.posts.index');
+    Route::post('admins/posts/{post}/approve', [AdminPostController::class, 'approve'])->name('admins.posts.approve');
 });

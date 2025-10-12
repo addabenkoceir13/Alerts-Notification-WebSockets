@@ -7,6 +7,51 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Real-Time Notifications (Laravel 11 + Reverb)
+
+### Prerequisites
+- PHP 8.2+, Composer, Node 18+, npm, MySQL
+
+### Setup
+1. Copy env and configure DB + Reverb
+   ```bash
+   cp .env.example .env
+   ```
+   Ensure in `.env`:
+   - `BROADCAST_CONNECTION=reverb`
+   - `QUEUE_CONNECTION=database`
+   - `REVERB_*` and `VITE_REVERB_*` provided (localhost:8080 defaults)
+
+2. Install dependencies
+   ```bash
+   composer install
+   npm install
+   ```
+
+3. Generate key, migrate and seed
+   ```bash
+   php artisan key:generate
+   php artisan migrate --seed
+   ```
+
+### Run (one command)
+```bash
+composer run dev
+```
+Starts: HTTP server, queue worker, Reverb (ws://127.0.0.1:8080), logs, Vite.
+
+### Default accounts
+- Admin: admin@test.com / 123456789
+- User: user@test.com / 123456789
+
+### Scenarios
+- User creates a post at `users/posts/create` → admins receive real-time notification.
+- Admin approves a post at `admins/posts` → the post author receives real-time notification.
+
+### Notes
+- Private channels: `private-App.Models.User.{id}` + `private-admins`
+- Notifications saved in DB + broadcast; bell updates live with Echo.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
