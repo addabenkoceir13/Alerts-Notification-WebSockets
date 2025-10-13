@@ -63,29 +63,9 @@
     <!-- Custom scripts for all pages-->
     <script src="{{ asset('js/sb-admin-2.min.js') }}"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/laravel-echo@1.16.1/dist/echo.iife.js"></script>
-    <script>
-        if (typeof Echo === 'undefined') {
-            console.error('Laravel Echo library did not load. Check the <script> tag URL.');
-        } else {
-            // أنشئ instance واحدة فقط
-            window.Echo = new Echo({
-                broadcaster: 'reverb',
-                key: "{{ env('REVERB_APP_KEY', 'local') }}",
-                wsHost: "{{ env('REVERB_HOST', request()->getHost()) }}",
-                wsPort: Number("{{ env('REVERB_PORT', 8080) }}"),
-                wssPort: Number("{{ env('REVERB_PORT', 8080) }}"),
-                forceTLS: "{{ env('REVERB_SCHEME', 'http') }}" === 'https',
-                enabledTransports: ['ws', 'wss'],
-                // (اختياري) لو عندك دومين/منفذ مختلفين، عرّف authEndpoint/headers
-                // authEndpoint: '{{ url('/broadcasting/auth') }}',
-                // auth: { headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } },
-            });
-            console.log('Echo ready:', window.Echo && typeof window.Echo.private);
-        }
-    </script>
+    @vite(['resources/js/app.js'])
 
-    @yield('script')
+    @stack('scripts')
 
 </body>
 

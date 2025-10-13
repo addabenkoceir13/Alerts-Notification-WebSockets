@@ -20,16 +20,20 @@ class PostController extends Controller
     }
     public function store(Request $request)
     {
-
-        $post = Post::create([
-            'title' => 'test 02113', 
-            'body' => 'test hjzsbdhhs', 
-            'user_id' => 3, 
-            'status' => 'pending'
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string'],
         ]);
 
-        event(new PostCreatedEvent($post));
+        $post = Post::create([
+            'title' => $validated['title'],
+            'body' => $validated['body'],
+            'user_id' => (int) $request->user()->id,
+            'status' => 'pending',
+        ]);
 
-        return redirect([PostController::class, 'index'])->with('status', 'Post created.');
+        event(new PostCreatedEvent($post->fresh('user')));
+
+        return redirect()->route('users.posts.index')->with('status', 'Post created.');
     }
 }

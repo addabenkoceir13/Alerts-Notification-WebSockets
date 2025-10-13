@@ -3,37 +3,46 @@
 namespace App\Events;
 
 use App\Models\Post;
-use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class PostApprovedEvent
+class PostApprovedEvent implements ShouldBroadcastNow
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable, SerializesModels;
 
-    public $post;
+    public Post $post;
 
-    /**
-     * Create a new event instance.
-     */
     public function __construct(Post $post)
     {
         $this->post = $post;
     }
 
-    /**
-     * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
-     */
     public function broadcastOn(): array
     {
+        // Notify specific user and also admins for table sync
         return [
-            new PrivateChannel('channel-name'),
+            new PrivateChannel('App.Models.User.' . $this->post->user_id),
+            new PrivateChannel('admins'),
+        ];
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'post.approved';
+    }
+
+    public function broadcastWith(): array
+    {
+        return [
+            'id' => $this->post->id,
+            'title' => $this->post->title,
+            'body' => $this->post->body,
+            'status' => $this->post->status,
+            'user_id' => $this->post->user_id,
+            'author' => optional($this->post->user)->name,
+            'updated_at' => optional($this->post->updated_at)->toDateTimeString(),
         ];
     }
 }

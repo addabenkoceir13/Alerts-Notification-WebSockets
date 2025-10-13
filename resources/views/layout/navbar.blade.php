@@ -218,10 +218,9 @@
 </nav>
 <!-- End of Topbar -->
 
-@section('script')
+@push('scripts')
     <script>
         (function() {
-                if (!window.Echo) return;
                 const csrf = document.querySelector('meta[name="csrf-token"]').content;
                 const countEl = document.getElementById('notif-count');
                 const list = document.getElementById('notif-list');
@@ -236,20 +235,57 @@
                     } [cat] || 'border-left-primary';
                 }
 
+                let currentSound = localStorage.getItem('notif:sound') || 'strong';
+                function playToneStrong(ctx) {
+                    const g = ctx.createGain();
+                    g.connect(ctx.destination);
+                    const o = ctx.createOscillator();
+                    o.type = 'square';
+                    o.frequency.value = 880;
+                    o.connect(g);
+                    const t = ctx.currentTime;
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.7, t + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+                    o.start();
+                    o.stop(t + 0.36);
+                }
+                function playToneSoft(ctx) {
+                    const g = ctx.createGain();
+                    g.connect(ctx.destination);
+                    const o = ctx.createOscillator();
+                    o.type = 'sine';
+                    o.frequency.value = 660;
+                    o.connect(g);
+                    const t = ctx.currentTime;
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.3, t + 0.03);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+                    o.start();
+                    o.stop(t + 0.26);
+                }
+                function playToneChime(ctx) {
+                    const g = ctx.createGain();
+                    g.connect(ctx.destination);
+                    const o1 = ctx.createOscillator();
+                    const o2 = ctx.createOscillator();
+                    o1.type = 'sine'; o2.type = 'sine';
+                    o1.frequency.value = 523.25; // C5
+                    o2.frequency.value = 659.25; // E5
+                    o1.connect(g); o2.connect(g);
+                    const t = ctx.currentTime;
+                    g.gain.setValueAtTime(0.0001, t);
+                    g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+                    o1.start(); o2.start();
+                    o1.stop(t + 0.5); o2.stop(t + 0.5);
+                }
                 function ding() {
                     try {
-                        const ctx = new(window.AudioContext || window.webkitAudioContext)();
-                        const o = ctx.createOscillator(),
-                            g = ctx.createGain();
-                        o.type = 'sine';
-                        o.frequency.value = 880;
-                        o.connect(g);
-                        g.connect(ctx.destination);
-                        g.gain.setValueAtTime(0.0001, ctx.currentTime);
-                        g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.01);
-                        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
-                        o.start();
-                        o.stop(ctx.currentTime + 0.2);
+                        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                        if (currentSound === 'strong') playToneStrong(ctx);
+                        else if (currentSound === 'soft') playToneSoft(ctx);
+                        else playToneChime(ctx);
                     } catch (e) {}
                 }
 
@@ -308,16 +344,42 @@
                     });
                 }
 
-                @auth
-                const uid = {{ auth()->id() }};
+                // Optional sound selector (persisted in localStorage)
+                const selector = document.createElement('select');
+                selector.className = 'custom-select custom-select-sm ml-2';
+                selector.innerHTML = `
+                    <option value="strong">Strong</option>
+                    <option value="soft">Soft</option>
+                    <option value="chime">Chime</option>`;
+                selector.value = currentSound;
+                selector.addEventListener('change', () => {
+                    currentSound = selector.value;
+                    localStorage.setItem('notif:sound', currentSound);
+                });
+                const alertsDropdown = document.getElementById('alertsDropdown');
+                if (alertsDropdown) alertsDropdown.parentElement.appendChild(selector);
+
+            @auth
+            const uid = {{ auth()->id() }};
+            const isAdmin = {{ auth()->user()->isAdmin() ? 'true' : 'false' }};
+            function subscribe() {
+                if (!window.Echo) return;
                 window.Echo.private('App.Models.User.' + uid)
-                    .notification((payload) => {
+                    .notification(() => {
                         ding();
                         load();
                     });
+                // Admin post-table sync happens in admins posts page script; no need to listen here
+            }
+            if (window.Echo) {
+                subscribe();
+            } else {
+                window.addEventListener('echo:ready', subscribe, { once: true });
+            }
             @endauth
 
+            // Always render initial state even if Echo isn't ready yet
             load();
         })();
     </script>
-@endsection
+@endpush
