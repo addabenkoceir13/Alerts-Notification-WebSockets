@@ -52,6 +52,115 @@ Starts: HTTP server, queue worker, Reverb (ws://127.0.0.1:8080), logs, Vite.
 - Private channels: `private-App.Models.User.{id}` + `private-admins`
 - Notifications saved in DB + broadcast; bell updates live with Echo.
 
+---
+
+## Step-by-Step Guide (Detailed)
+
+### 1) Verify WebSockets Are Working
+- Ensure you are logged in (private channels require auth).
+- Browser DevTools → Network:
+  - Check POST `/broadcasting/auth` returns 200 when a page with Echo loads.
+  - Confirm a WebSocket connects to `ws://127.0.0.1:8080/app/local` and stays open.
+- Console must not show: “Pusher client not found” (we load `pusher-js` in `resources/js/echo.js`).
+- If you change `.env` Vite vars, re-run `npm run dev`.
+
+### 2) Broadcasting Channels and Auth
+```php
+// routes/channels.php
+Broadcast::routes(['middleware' => ['web', 'auth']]);
+
+Broadcast::channel('App.Models.User.{id}', fn($user, $id) => (int)$user->id === (int)$id);
+Broadcast::channel('admins', fn($user) => $user && $user->isAdmin());
+```
+
+### 3) Echo Initialization (Frontend)
+```js
+// resources/js/echo.js
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
+window.Pusher = Pusher;
+
+window.Echo = new Echo({
+  broadcaster: 'reverb',
+  key: import.meta.env.VITE_REVERB_APP_KEY,
+  wsHost: import.meta.env.VITE_REVERB_HOST || window.location.hostname,
+  wsPort: Number(import.meta.env.VITE_REVERB_PORT ?? 80),
+  wssPort: Number(import.meta.env.VITE_REVERB_PORT ?? 443),
+  forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+  enabledTransports: ['ws', 'wss'],
+});
+window.dispatchEvent(new CustomEvent('echo:ready'));
+```
+Also sets CSRF in `resources/js/bootstrap.js` to allow private auth.
+
+### 4) Events and Listeners
+```php
+// app/Events/PostCreatedEvent.php (admin stream)
+class PostCreatedEvent implements ShouldBroadcastNow {
+  use Dispatchable, SerializesModels;
+  public function __construct(public Post $post) {}
+  public function broadcastOn(): array { return [new PrivateChannel('admins')]; }
+  public function broadcastAs(): string { return 'post.created'; }
+  public function broadcastWith(): array { return [
+    'id'=>$this->post->id,'title'=>$this->post->title,'body'=>$this->post->body,
+    'status'=>$this->post->status,'user_id'=>$this->post->user_id,
+    'author'=>optional($this->post->user)->name,
+    'created_at'=>optional($this->post->created_at)->toDateTimeString(),
+  ]; }
+}
+
+// app/Events/PostApprovedEvent.php (user + admins)
+class PostApprovedEvent implements ShouldBroadcastNow {
+  use Dispatchable, SerializesModels;
+  public function __construct(public Post $post) {}
+  public function broadcastOn(): array { return [
+    new PrivateChannel('App.Models.User.'.$this->post->user_id),
+    new PrivateChannel('admins'),
+  ]; }
+  public function broadcastAs(): string { return 'post.approved'; }
+  public function broadcastWith(): array { return [
+    'id'=>$this->post->id,'title'=>$this->post->title,'body'=>$this->post->body,
+    'status'=>$this->post->status,'user_id'=>$this->post->user_id,
+    'author'=>optional($this->post->user)->name,
+    'updated_at'=>optional($this->post->updated_at)->toDateTimeString(),
+  ]; }
+}
+```
+Listeners queue notifications to DB + broadcast; see `app/Listeners/*` and `app/Notifications/*`.
+
+### 5) Blade Notifications (Navbar)
+- The bell loads: GET `/notifications/unread-count`, `/notifications`.
+- Subscribes after `echo:ready` to `private-App.Models.User.{id}` and listens to `.notification(...)` to refresh the list and badge instantly.
+- Actions:
+  - POST `/notifications/{id}/read`
+  - POST `/notifications/read-all`
+
+### 6) Real-time Posts Table Updates
+- Admin page (`resources/views/admins/posts/index.blade.php`):
+```js
+window.Echo.private('admins')
+  .listen('.post.created', e => updateRow(e))
+  .listen('.post.approved', e => updateRow(e));
+```
+- User page (`resources/views/users/posts/index.blade.php`):
+```js
+window.Echo.private('App.Models.User.' + uid)
+  .listen('.post.approved', e => updateRow(e));
+```
+`updateRow(e)` updates or prepends rows by `data-id` and refreshes title/body/status.
+
+### 7) Strong, Noticeable Notification Sound (+ Preferences)
+- WebAudio tones (no external files). In navbar JS:
+  - Tones: strong (square, louder), soft (sine), chime (two sines)
+  - Selector next to bell persists user preference in `localStorage('notif:sound')`.
+  - `ding()` runs on admin and user notification receipts.
+
+### 8) Troubleshooting
+- Queue worker must be running.
+- `/broadcasting/auth` returns 200 for authenticated users.
+- WebSocket connects and stays open (no mixed http/https).
+- If you change `.env` Vite variables, re-run `npm run dev`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
